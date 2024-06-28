@@ -47,7 +47,7 @@ int x11_randr_show_info(int only_connected) {
             char *connected = output_info->connection == 0 ? "C" : "D";
             int w = 0, h = 0;
 
-            if(output_info->connection == 0){
+            if (output_info->connection == 0) {
                 XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(state.dpy, state.res, state.res->crtcs[c]);
                 w = crtc_info->width;
                 h = crtc_info->height;
@@ -81,14 +81,18 @@ int x11_randr_set_temperature(int kelvin, double bright, double gamma) {
 
     for (int c = 0; c < state.res->noutput; c++) {
         XRROutputInfo *output_info = XRRGetOutputInfo(state.dpy, state.res, state.res->outputs[c]);
-        if (output_info->connection == 1) continue;
+        if (output_info->connection == 1) {
+            XRRFreeOutputInfo(output_info);
+            continue;
+        }
 
-        XRRCrtcGamma *current_gamma = XRRGetCrtcGamma(state.dpy, state.res->crtcs[c]);
+        XRRCrtcGamma *current_gamma = XRRGetCrtcGamma(state.dpy, output_info->crtc);
 
         if (gammas == NULL) gammas = calculate_gamma_ramp_x11(kelvin, bright, gamma, current_gamma->size);
 
-
-        XRRSetCrtcGamma(state.dpy, state.res->crtcs[c], gammas);
+//        printf("CRTC: %d\n", c);
+//
+        XRRSetCrtcGamma(state.dpy, output_info->crtc, gammas);
 
         XRRFreeOutputInfo(output_info);
         XRRFreeGamma(current_gamma);

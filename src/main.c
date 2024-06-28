@@ -6,7 +6,7 @@
 #include "display_servers/xcb_randr.h"
 
 const char *NAME = "qredshift";
-const double VERSION = 0.10;
+const double VERSION = 0.11;
 
 
 typedef struct {
@@ -66,7 +66,8 @@ int main(int argc, char *argv[]) {
             {""},
             {"-t", "Temperature in kelvin",      "6500", 0},
             {"-b", "Brightness from 0.1 to 1.0", "1.0",  0},
-            {"-g", "Gamma from 0.1 to 1.0",      "1.0",  0}
+            {"-g", "Gamma from 0.1 to 1.0",      "1.0",  0},
+            {"-xcb", "Use alternative lib",        "",     0}
     };
 
     int params_size = sizeof(params) / sizeof(PARAM);
@@ -98,8 +99,11 @@ int main(int argc, char *argv[]) {
         printf("WM:%s\n\n", "unknown");
 
         if (x11) {
-            x11_randr_show_info(1);
-            // randr_show_info(1);
+            if (params[7].exists) {
+                randr_show_info(1);
+            } else {
+                x11_randr_show_info(1);
+            }
         }
         return 0;
     }
@@ -111,8 +115,12 @@ int main(int argc, char *argv[]) {
 
 
     if (is_x11()) {
-        x11_randr_set_temperature(kelvin, bright, gamma);
-        // randr_set_temperature(kelvin, bright, gamma);
+        if (params[7].exists) {
+            randr_set_temperature(kelvin, bright, gamma);
+        } else {
+            x11_randr_set_temperature(kelvin, bright, gamma);
+        }
+
     } else {
         fprintf(stderr, "Display '%s' server not supported", getenv("XDG_SESSION_TYPE"));
     };
