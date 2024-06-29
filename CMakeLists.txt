@@ -5,6 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 set(CMAKE_C_FLAGS "-O3")
 
+
 add_executable(qredshift src/main.c
         src/utils/gamma_ramp.c
         src/display_servers/x11_randr.c

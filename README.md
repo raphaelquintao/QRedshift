@@ -27,3 +27,11 @@ Reset: `qredshift -t`
 | -t 6500   | Temperature in kelvin      |
 | -b 1.0    | Brightness from 0.1 to 1.0 |
 | -g 1.0    | Gamma from 0.1 to 1.0      |
+
+# Build
+
+1. Install dependencies: `sudo apt-get install libxcb1-dev libxcb-randr0-dev cmake`
+2. Build cmake project `cmake -G "Unix Makefiles" -B build .`
+3. Build binary `cd build && make`
+
+
