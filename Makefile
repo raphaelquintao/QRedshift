@@ -53,6 +53,8 @@ BUILD_DIR = build
 SRCS = $(shell find $(SRC_DIR) -name '*.c')
 # Local ARCH
 ARCH = $(shell uname -m)
+PWD = $(shell pwd)
+U = $(shell id -u $(SUDO_USER)):$(shell id -g $(SUDO_USER))
 
 .PHONY:	default
 
@@ -61,8 +63,9 @@ default:
 	@make $(ARCH)
 
 all-docker:
+	@echo ===\> Building with DOCKER \<===
 	@docker build . -t qredshift-cross
-	@docker run -itd -v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -v .:/qredshift -u 1000:1000 qredshift-cross make all
+	@docker run -it -v $(PWD):/qredshift -u $(U) qredshift-cross make all
 
 all:
 	@echo ===\> Building ALL \<===
