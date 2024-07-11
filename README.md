@@ -28,10 +28,38 @@ Reset: `qredshift -t`
 | -b 1.0    | Brightness from 0.1 to 1.0 |
 | -g 1.0    | Gamma from 0.1 to 1.0      |
 
-# Build
-
-1. Install dependencies: `sudo apt-get install libxcb1-dev libxcb-randr0-dev cmake`
+# Compiling
+1. Install dependencies
+   * ```shell
+      sudo apt-get install libxcb1-dev libxcb-randr0-dev
+     ```
 2. Build cmake project `cmake -G "Unix Makefiles" -B build .`
 3. Build binary `cd build && make`
+
+## Cross Compiling Local (DEBIAN)
+**Not tested on Ubuntu**
+
+1. Add archtetures
+   ```shell
+   sudo dpkg --add-architecture amd64  
+   sudo dpkg --add-architecture i386   
+   sudo dpkg --add-architecture armhf  
+   sudo dpkg --add-architecture arm64  
+   sudo dpkg --add-architecture ppc64el
+   sudo dpkg --add-architecture s390x  
+   ```
+2. Install dependencies
+   ```shell
+   sudo apt-get install libxcb1-dev:amd64 libxcb-randr0-dev:amd64 libxcb1-dev:i386 libxcb-randr0-dev:i386 libxcb1-dev:armhf libxcb-randr0-dev:armhf libxcb1-dev:arm64 libxcb-randr0-dev:arm64 libxcb1-dev:ppc64el libxcb-randr0-dev:ppc64el libxcb1-dev:s390x libxcb-randr0-dev:s390x  
+   ```
+3. Build
+   ```shell
+   make all
+   ```
+
+
+## Cross Compiling Docker
+ Todo
+
 
 
