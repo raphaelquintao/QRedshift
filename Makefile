@@ -20,12 +20,12 @@
 # BIN.ppc64el = qredshift_ppc64le
 # BIN.s390x = qredshift_s390x
 
-ARCHS = x86_64 i686 aarch64 rmv7l armv5tel mips64el mipsel powerpc64le s390x 
+ARCHS = x86_64 i686 aarch64 armv7l armv5tel mips64el mipsel powerpc64le s390x
 
 CC.x86_64 = x86_64-linux-gnu-gcc
 CC.i686 = i686-linux-gnu-gcc
 CC.aarch64 = aarch64-linux-gnu-gcc
-CC.rmv7l = arm-linux-gnueabihf-gcc
+CC.armv7l = arm-linux-gnueabihf-gcc
 CC.armv5tel = arm-linux-gnueabi-gcc
 CC.mips64el = mips64el-linux-gnuabi64-gcc
 CC.mipsel = mipsel-linux-gnu-gcc
@@ -35,12 +35,14 @@ CC.s390x = s390x-linux-gnu-gcc
 BIN.x86_64 = qredshift_x86_64
 BIN.i686 = qredshift_i686
 BIN.aarch64 = qredshift_aarch64
-BIN.rmv7l = qredshift_armv7l
+BIN.armv7l = qredshift_armv7l
 BIN.armv5tel = qredshift_armv5tel
 BIN.mips64el = qredshift_mips64el
 BIN.mipsel = qredshift_mipsel
 BIN.powerpc64le = qredshift_powerpc64le
 BIN.s390x = qredshift_s390x
+
+DOCKER_IMAGE_NAME = qredshift-cross
 
 # Flags
 CFLAGS = -lX11 -lXrandr -lxcb -lxcb-randr -lm
@@ -64,7 +66,13 @@ default:
 
 all-docker:
 	@echo ===\> Building with DOCKER \<===
-	@docker build . -t qredshift-cross
+	@echo USER: $(U)
+	@if [ -z "$$(docker images -q $(DOCKER_IMAGE_NAME))" ]; then \
+		echo "Image $(DOCKER_IMAGE_NAME) does not exist, proceeding with build..."; \
+		docker build . -t $(DOCKER_IMAGE_NAME);\
+	else \
+		echo "Image $(DOCKER_IMAGE_NAME) already exists."; \
+	fi
 	@docker run -it -v $(PWD):/qredshift -u $(U) qredshift-cross make all
 
 all:
