@@ -29,7 +29,7 @@ Reset: `qredshift -t`
 | -g 1.0    | Gamma from 0.1 to 1.0      |
 
 # Compiling on Debian
-1. Install dependencies
+1. Install Dependencies
    * ```shell
       sudo sudo apt-get install libxrandr-dev libxcb1-dev libxcb-randr0-dev 
      ```
@@ -39,7 +39,7 @@ Reset: `qredshift -t`
      ```
 
 ## Cross Compiling with Docker on Debian
-1. Install docker
+1. Install Docker
    * ```shell
       sudo apt-get install docker.io 
       ```
@@ -50,7 +50,7 @@ Reset: `qredshift -t`
 
 ## Cross Compiling Local on Debian
 
-1. Add archtetures
+1. Add Architectures
    * ```shell
       sudo dpkg --add-architecture amd64  
       sudo dpkg --add-architecture i386   
@@ -62,7 +62,7 @@ Reset: `qredshift -t`
       sudo dpkg --add-architecture ppc64el
       sudo dpkg --add-architecture s390x  
       ```
-2. Install dependencies
+2. Install Dependencies
    * ```shell
       sudo apt-get install gcc
       sudo apt-get install gcc-i686-linux-gnu  
