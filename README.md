@@ -7,13 +7,13 @@ A linux terminal application that change screen color temperature.
 If you're looking for the cinnamon applet the repository was renamed
 to [QRedshiftCinnamon](https://github.com/raphaelquintao/QRedshiftCinnamon).
 
-# Features
+## Features
 
 - [x] X11 Support
 - [ ] Wayland Support
 - [ ] Different settings for each monitor
 
-# Usage
+## Usage
 
 Basic: `qredshift -t [temperature in Kelvin] -b [bright] -g [gamma]`
 
@@ -28,7 +28,7 @@ Reset: `qredshift -t`
 | -b 1.0    | Brightness from 0.1 to 1.0 |
 | -g 1.0    | Gamma from 0.1 to 1.0      |
 
-# Compiling on Debian
+## Compiling on Debian
 1. Install Dependencies
    * ```shell
       sudo sudo apt-get install libxrandr-dev libxcb1-dev libxcb-randr0-dev 
@@ -38,7 +38,7 @@ Reset: `qredshift -t`
      make 
      ```
 
-## Cross Compiling with Docker on Debian
+### Cross Compiling with Docker on Debian
 1. Install Docker
    * ```shell
       sudo apt-get install docker.io 
@@ -48,7 +48,7 @@ Reset: `qredshift -t`
      sudo make all-docker
      ```
 
-## Cross Compiling Local on Debian
+### Cross Compiling Local on Debian
 
 1. Add Architectures
    * ```shell
