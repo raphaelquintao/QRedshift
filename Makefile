@@ -42,21 +42,27 @@ BIN.mipsel = qredshift_mipsel
 BIN.powerpc64le = qredshift_powerpc64le
 BIN.s390x = qredshift_s390x
 
-
+# Flags
 CFLAGS = -lX11 -lXrandr -lxcb -lxcb-randr -lm
 
-# Source and build directories
+# Directories
 SRC_DIR = src
 BUILD_DIR = build
 
-# List of source files
+# Source Files
 SRCS = $(shell find $(SRC_DIR) -name '*.c')
+# Local ARCH
 ARCH = $(shell uname -m)
 
 .PHONY:	default
 
 default:
+	@echo ===\> Building for current Arch \<===
 	@make $(ARCH)
+
+all-docker:
+	@docker build . -t qredshift-cross
+	@docker run -itd -v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -v .:/qredshift -u 1000:1000 qredshift-cross make all
 
 all:
 	@echo ===\> Building ALL \<===
@@ -65,9 +71,9 @@ all:
 $(ARCHS):
 	@echo ===\> Building for $@ \<===
 	@rm -f $(BUILD_DIR)/$(BIN.$@)
-	@mkdir -p $(BUILD_DIR)/
+	@mkdir -p $(BUILD_DIR)
 # 	@make $(OBJS) ARCH=$@
-	@make $(BUILD_DIR)/$(BIN.$@) ARCH=$@
+	@make $(BUILD_DIR)/$(BIN.$@) ARCH=$@ 1> /dev/null
 
 # Build Temporaly files
 # $(OBJS): $(SRCS)
