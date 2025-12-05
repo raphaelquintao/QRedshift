@@ -28,30 +28,29 @@ Reset: `qredshift -t`
 | -b 1.0    | Brightness from 0.1 to 1.0 |
 | -g 1.0    | Gamma from 0.1 to 1.0      |
 
-## Compiling on Debian
-1. Install Dependencies
-   * ```shell
-      sudo sudo apt-get install libxrandr-dev libxcb1-dev libxcb-randr0-dev 
-     ```
-2. Build
-   * ```shell
-     make 
-     ```
+## Compiling
 
-### Cross Compiling with Docker on Debian
+1. Install Dependencies
+    * Debian: `sudo apt-get install libxrandr-dev libxcb1-dev libxcb-randr0-dev`
+    * Arch: `sudo pacman -Syu libxrandr libxcb xcb-util`
+2. Build
+    * `make x86_64`
+
+#### Cross Compiling with Docker on Debian
+
 1. Install Docker
-   * ```shell
+    * ```shell
       sudo apt-get install docker.io 
       ```
 2. Build
-   * ```shell
+    * ```shell
      sudo make all-docker
      ```
 
-### Cross Compiling Local on Debian
+#### Cross Compiling Local on Debian
 
 1. Add Architectures
-   * ```shell
+    * ```shell
       sudo dpkg --add-architecture amd64  
       sudo dpkg --add-architecture i386   
       sudo dpkg --add-architecture arm64  
@@ -63,7 +62,7 @@ Reset: `qredshift -t`
       sudo dpkg --add-architecture s390x  
       ```
 2. Install Dependencies
-   * ```shell
+    * ```shell
       sudo apt-get install gcc
       sudo apt-get install gcc-i686-linux-gnu  
       sudo apt-get install gcc-aarch64-linux-gnu
@@ -77,9 +76,6 @@ Reset: `qredshift -t`
       sudo apt-get install libxrandr-dev:* libxcb1-dev:* libxcb-randr0-dev:*  
       ```
 3. Build
-   *  ```shell
+    *  ```shell
       make all
       ```
-
-
-
