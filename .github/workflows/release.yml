@@ -4,6 +4,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,9 +21,10 @@ jobs:
       - name: Build binaries and DEBs
         run: |
           docker run -v $(pwd):/qredshift qredshift-cross sh -c "make x86_64 i686 aarch64 armv7l armv5tel mips64el mipsel powerpc64le s390x debs"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: build-artifacts
-          path: build
+          generate_release_notes: true
+          files: |
+            build/qredshift_*
+            build/*.deb
