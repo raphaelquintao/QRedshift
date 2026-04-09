@@ -42,14 +42,14 @@ Reset: `qredshift -t`
 ###### Debian
 ```shell
 sudo apt-get install libxrandr-dev libxcb1-dev libxcb-randr0-dev
-sudo make
+make
 ```
 
 ###### Arch
 
 ```shell
 sudo pacman -Syu libxrandr libxcb xcb-util
-sudo make
+make
 ```
 
 ### Cross Compiling
