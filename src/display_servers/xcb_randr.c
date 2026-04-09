@@ -1,4 +1,9 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <math.h>
 #include "xcb_randr.h"
+#include "../utils/gamma_ramp.h"
 
 int randr_init(XCB_RANDR *state) {
 //    xcb_generic_error_t *error;
@@ -58,12 +63,12 @@ int randr_show_info(int only_connected) {
         return -1;
     }
 
-    xcb_randr_crtc_t *crtcs = xcb_randr_get_screen_resources_current_crtcs(res_reply);
     xcb_randr_output_t *outputs = xcb_randr_get_screen_resources_current_outputs(res_reply);
 
 //    printf("CRTCs: %d\n", res_reply->num_crtcs);
 //    printf("Outputs: %d\n", res_reply->num_outputs);
 
+    printf("Lib: XCB RandR\n");
     for (unsigned int i = 0; i < res_reply->num_outputs; i++) {
         xcb_randr_get_output_info_cookie_t output_info_cookie = xcb_randr_get_output_info(state.conn, outputs[i], res_reply->config_timestamp);
         xcb_randr_get_output_info_reply_t *output_info_reply = xcb_randr_get_output_info_reply(state.conn, output_info_cookie, &error);
@@ -72,19 +77,45 @@ int randr_show_info(int only_connected) {
             return -1;
         }
 
-        if (only_connected == 1 && output_info_reply->connection == 0 || only_connected == 0) {
-            xcb_randr_get_crtc_info_cookie_t info_cookie = xcb_randr_get_crtc_info(state.conn, crtcs[i], res_reply->config_timestamp);
-            xcb_randr_get_crtc_info_reply_t *info_reply = xcb_randr_get_crtc_info_reply(state.conn, info_cookie, &error);
-            if (error) {
-                fprintf(stderr, "`%s' returned error %d\n", "Randr Get CRTC Info", error->error_code);
-                return -1;
+        if ((only_connected == 1 && output_info_reply->connection == 0 )|| only_connected == 0) {
+            xcb_randr_crtc_t crtc = output_info_reply->crtc;
+            int w = 0, h = 0;
+
+            if (output_info_reply->connection == 0 && crtc) {
+                xcb_randr_get_crtc_info_cookie_t info_cookie = xcb_randr_get_crtc_info(state.conn, crtc, res_reply->config_timestamp);
+                xcb_randr_get_crtc_info_reply_t *info_reply = xcb_randr_get_crtc_info_reply(state.conn, info_cookie, &error);
+                if (error) {
+                    fprintf(stderr, "`%s' returned error %d\n", "Randr Get CRTC Info", error->error_code);
+                    return -1;
+                }
+                w = info_reply->width;
+                h = info_reply->height;
+                free(info_reply);
             }
 
             char *name = int_array_to_string(xcb_randr_get_output_info_name(output_info_reply), output_info_reply->name_len);
 
-            printf("%d:%c:%s:%dx%d\n", i, output_info_reply->connection == 0 ? 'C' : 'D', name, info_reply->width, info_reply->height);
+            printf("%d:%c:%s:%dx%d | ", i, output_info_reply->connection == 0 ? 'C' : 'D', name, w, h);
 
-//            free(info_reply);
+            if (crtc) {
+                xcb_randr_get_crtc_gamma_cookie_t gamma_cookie = xcb_randr_get_crtc_gamma(state.conn, crtc);
+                xcb_randr_get_crtc_gamma_reply_t *gamma_reply = xcb_randr_get_crtc_gamma_reply(state.conn, gamma_cookie, &error);
+                if (gamma_reply && !error) {
+                    int ramp_size = gamma_reply->size;
+                    uint16_t *r = xcb_randr_get_crtc_gamma_red(gamma_reply);
+                    uint16_t *g = xcb_randr_get_crtc_gamma_green(gamma_reply);
+                    uint16_t *b = xcb_randr_get_crtc_gamma_blue(gamma_reply);
+                    GAMMA ramp = {r, g, b};
+                    GammaParams params = reverse_gamma_ramp(&ramp, ramp_size);
+                    printf("T: %dK | B: %.2f | G: %.2f\n", params.kelvin, params.bright, params.gamma);
+                    free(gamma_reply);
+                } else {
+                    printf("No gamma available\n");
+                }
+            } else {
+                printf("No CRTC assigned\n");
+            }
+
             free(name);
         }
 
@@ -122,7 +153,6 @@ int randr_set_temperature(int kelvin, double bright, double gamma) {
 
     GAMMA *gammas = NULL;
 
-
     for (int i = 0; i < res_reply->num_crtcs; i++) {
         xcb_randr_get_crtc_gamma_size_cookie_t gamma_size_cookie = xcb_randr_get_crtc_gamma_size(state.conn, crtcs[i]);
         xcb_randr_get_crtc_gamma_size_reply_t *gamma_size_reply = xcb_randr_get_crtc_gamma_size_reply(state.conn, gamma_size_cookie, &error);
@@ -133,11 +163,11 @@ int randr_set_temperature(int kelvin, double bright, double gamma) {
 
         if (gammas == NULL) gammas = calculate_gamma_ramp(kelvin, bright, gamma, (int) gamma_size_reply->size);
 
-
         xcb_void_cookie_t gamma_set_cookie = xcb_randr_set_crtc_gamma_checked(state.conn, crtcs[i], gamma_size_reply->size, gammas->r, gammas->g, gammas->b);
         xcb_generic_error_t *error2 = xcb_request_check(state.conn, gamma_set_cookie);
         if (error2) {
-            printf("`%s' returned error %d\n", "RANDR Set CRTC Gamma", error->error_code);
+            fprintf(stderr, "`%s' returned error %d\n", "RANDR Set CRTC Gamma", error2->error_code);
+            free(error2);
             return -1;
         }
 
@@ -145,21 +175,8 @@ int randr_set_temperature(int kelvin, double bright, double gamma) {
     }
 
     free(res_reply);
-    if (gammas != NULL) {
-        free(gammas->r);
-        free(gammas->g);
-        free(gammas->b);
-        free(gammas);
-    }
+    if (gammas) free_gamma_ramp(gammas);
     randr_free(&state);
-
 
     return 0;
 }
-
-
-
-
-
-
-

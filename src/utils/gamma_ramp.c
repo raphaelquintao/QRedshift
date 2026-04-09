@@ -1,4 +1,7 @@
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <math.h>
 #include "gamma_ramp.h"
 
 
@@ -247,9 +250,33 @@ static RGB gammas_rgb[] = {
         {0.62774186, 0.75306977, 1.00000000}, /* 25000K */
         {0.62740336, 0.75282962, 1.00000000}  /* 25100K */
 };
-//endregion
+
+void interpolate_rgb(float a, RGB *c1, const RGB *c2, RGB *c) {
+    c->r = (1.0 - a) * c1->r + a * c2->r;
+    c->g = (1.0 - a) * c1->g + a * c2->g;
+    c->b = (1.0 - a) * c1->b + a * c2->b;
+}
+
+/*
+ * Kelvin to RGB color conversion using interpolation
+ * old way of calculating kelvin to RGB, used by the old apps, like redshift.
+ * this is faster, but less accurate than the new way,
+ * but it can be used to match the exact same colors of the legacy redshift.
+ * Nowdays the speed difference is negligible, so the new way is recommended.
+ * This can be used for compatibility reasons.
+ */
+RGB kelvin_to_rgb_interpolated(int kelvin) {
+    const double alpha = (kelvin % 100) / 100.0;
+    const int index = ((kelvin - 1000) / 100);
+    RGB white_point = {1, 1, 1};
+    interpolate_rgb((float) alpha, &gammas_rgb[index], &gammas_rgb[index +1], &white_point);
+    return white_point;
+}
 
 
+/*
+ * Convert kelvin temperature to RGB color
+ */
 RGB kelvin_to_rgb(double kelvin) {
     double temp = kelvin / 100.0;
     double r, g, b;
@@ -290,13 +317,7 @@ RGB kelvin_to_rgb(double kelvin) {
 
     return color;
 }
-
-//static void interpolate_rgb(float a, RGB *c1, const RGB *c2, RGB *c) {
-//    c->r = (1.0 - a) * c1->r + a * c2->r;
-//    c->g = (1.0 - a) * c1->g + a * c2->g;
-//    c->b = (1.0 - a) * c1->b + a * c2->b;
-//}
-
+//endregion
 
 GAMMA *calculate_gamma_ramp(int kelvin, double bright, double gamma, int ramp_size) {
     const float MAX = UINT16_MAX + 1;
@@ -310,9 +331,9 @@ GAMMA *calculate_gamma_ramp(int kelvin, double bright, double gamma, int ramp_si
 
     GAMMA *gamma_ramps = malloc(sizeof(GAMMA));
 
-    gamma_ramps->r = calloc(ramp_size, UINT16_MAX);
-    gamma_ramps->g = calloc(ramp_size, UINT16_MAX);
-    gamma_ramps->b = calloc(ramp_size, UINT16_MAX);
+    gamma_ramps->r = calloc(ramp_size, sizeof(unsigned short));
+    gamma_ramps->g = calloc(ramp_size, sizeof(unsigned short));
+    gamma_ramps->b = calloc(ramp_size, sizeof(unsigned short));
 
 
     for (int i = 0; i < ramp_size; i++) {
@@ -331,34 +352,110 @@ GAMMA *calculate_gamma_ramp(int kelvin, double bright, double gamma, int ramp_si
     return gamma_ramps;
 }
 
-XRRCrtcGamma *calculate_gamma_ramp_x11(int kelvin, double bright, double gamma, int ramp_size) {
-    const float MAX = UINT16_MAX + 1;
-
-
-    RGB temperature = kelvin_to_rgb(kelvin);
-
-    XRRCrtcGamma *gamma_ramps = XRRAllocGamma(ramp_size);
-
-
-    for (int i = 0; i < ramp_size; i++) {
-        double value = ((double) i) / ((double) (ramp_size));
-
-        double temp_r = value * temperature.r * bright;
-        double temp_g = value * temperature.g * bright;
-        double temp_b = value * temperature.b * bright;
-
-        gamma_ramps->red[i] = (uint16_t)(pow(temp_r, 1.0 / gamma) * MAX);
-        gamma_ramps->green[i] = (uint16_t)(pow(temp_g, 1.0 / gamma) * MAX);
-        gamma_ramps->blue[i] = (uint16_t)(pow(temp_b, 1.0 / gamma) * MAX);
-
+void free_gamma_ramp(GAMMA *ramp) {
+    if (ramp) {
+        free(ramp->r);
+        free(ramp->g);
+        free(ramp->b);
+        free(ramp);
     }
-
-    return gamma_ramps;
 }
 
+GammaParams reverse_gamma_ramp(const GAMMA *ramp, int ramp_size) {
+    const double MAX = UINT16_MAX + 1;
+    GammaParams params = {6500, 1.0, 1.0};
 
+    if (ramp_size < 2) return params;
 
+    int last = ramp_size - 1;
+    double r_last = ramp->r[last] / MAX;
+    double g_last = ramp->g[last] / MAX;
+    double b_last = ramp->b[last] / MAX;
 
+    // recover gamma using mid vs last entry ratio
+    // forward: entry[i] = pow((i/ramp_size) * color * bright, 1/gamma) * MAX
+    // so: entry[mid]/entry[last] = pow(mid/last, 1/gamma)
+    // => gamma = log(mid/last) / log(entry[mid]/entry[last])
+    int mid = ramp_size / 2;
+    double r_mid = ramp->r[mid] / MAX;
+    double expected_ratio = (double)mid / (double)last;
+
+    if (r_last > 0.001 && r_mid > 0.001) {
+        double ratio = r_mid / r_last;
+        if (ratio > 0.001 && ratio < 0.999) {
+            params.gamma = log(expected_ratio) / log(ratio);
+        }
+    }
+
+    // recover (color * bright) per channel from last entry
+    // r_last = pow(scale * color_r * bright, 1/gamma)
+    // r_last^gamma = scale * color_r * bright
+    double scale = (double)last / (double)ramp_size;
+    double rb = pow(r_last, params.gamma) / scale;
+    double gb = pow(g_last, params.gamma) / scale;
+    double bb = pow(b_last, params.gamma) / scale;
+
+    // max channel = bright (since the dominant color channel is 1.0 in kelvin_to_rgb)
+    double max_val = rb;
+    if (gb > max_val) max_val = gb;
+    if (bb > max_val) max_val = bb;
+
+    if (max_val < 0.001) return params;
+
+    params.bright = max_val;
+
+    // normalize to get the RGB temperature ratios
+    double norm_r = rb / max_val;
+    double norm_g = gb / max_val;
+    double norm_b = bb / max_val;
+
+    // two-pass search over kelvin range using kelvin_to_rgb()
+    // coarse pass: step 100K
+    double best_dist = 1e9;
+    int best_k = 6500;
+
+    for (int k = 1000; k <= 25000; k += 100) {
+        RGB c = kelvin_to_rgb(k);
+        double dr = norm_r - c.r;
+        double dg = norm_g - c.g;
+        double db = norm_b - c.b;
+        double dist = dr * dr + dg * dg + db * db;
+        if (dist < best_dist) {
+            best_dist = dist;
+            best_k = k;
+        }
+    }
+
+    // fine pass: step 1K around the best candidate
+    int lo = best_k - 100;
+    int hi = best_k + 100;
+    if (lo < 1000) lo = 1000;
+    if (hi > 25000) hi = 25000;
+
+    for (int k = lo; k <= hi; k++) {
+        RGB c = kelvin_to_rgb(k);
+        double dr = norm_r - c.r;
+        double dg = norm_g - c.g;
+        double db = norm_b - c.b;
+        double dist = dr * dr + dg * dg + db * db;
+        if (dist < best_dist) {
+            best_dist = dist;
+            best_k = k;
+        }
+    }
+    params.kelvin = best_k;
+
+    // refine brightness using the found kelvin
+    RGB temp_rgb = kelvin_to_rgb(params.kelvin);
+    double max_channel = temp_rgb.r;
+    if (temp_rgb.g > max_channel) max_channel = temp_rgb.g;
+    if (temp_rgb.b > max_channel) max_channel = temp_rgb.b;
+    if (max_channel > 0.001) {
+        params.bright = max_val / max_channel;
+    }
+
+    return params;
+}
 
 
 

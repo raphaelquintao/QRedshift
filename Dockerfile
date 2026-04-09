@@ -1,4 +1,4 @@
-FROM debian:12.0
+FROM debian:12.0-slim
 
 WORKDIR /qredshift
 
@@ -15,6 +15,7 @@ RUN dpkg --add-architecture s390x
 RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install build-essential -y
+RUN apt-get install pkg-config -y
 RUN apt-get install gcc -y
 RUN apt-get install gcc-i686-linux-gnu -y
 RUN apt-get install gcc-aarch64-linux-gnu -y

@@ -1,12 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <strings.h>
-
+#pragma once
 #include <xcb/xcb.h>
 #include <xcb/randr.h>
-#include "../utils/gamma_ramp.h"
 
 typedef struct {
     xcb_connection_t *conn;

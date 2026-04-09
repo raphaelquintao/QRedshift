@@ -1,8 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <math.h>
-#include <X11/extensions/Xrandr.h>
+#pragma once
+
+typedef struct {
+  int kelvin;
+  double gamma;
+  double bright;
+} GammaParams;
+
 
 typedef struct {
     double r;
@@ -20,4 +23,6 @@ RGB kelvin_to_rgb(double kelvin);
 
 GAMMA *calculate_gamma_ramp(int kelvin, double bright, double gamma, int ramp_size);
 
-XRRCrtcGamma *calculate_gamma_ramp_x11(int kelvin, double bright, double gamma, int ramp_size);
+GammaParams reverse_gamma_ramp(const GAMMA *ramp, int ramp_size);
+
+void free_gamma_ramp(GAMMA *ramp);

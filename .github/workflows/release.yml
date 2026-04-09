@@ -1,0 +1,26 @@
+name: release.yml
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build . -t qredshift-cross
+
+      - name: Build binaries and DEBs
+        run: |
+          docker run -v $(pwd):/qredshift qredshift-cross sh -c "make x86_64 i686 aarch64 armv7l armv5tel mips64el mipsel powerpc64le s390x debs"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: build

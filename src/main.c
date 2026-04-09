@@ -5,26 +5,27 @@
 #include "display_servers/x11_randr.h"
 #include "display_servers/xcb_randr.h"
 
-const char *NAME = "qredshift";
-const double VERSION = 0.11;
+
+const char* NAME = "qredshift";
+const double VERSION = 0.12;
 
 
 typedef struct {
-    char *name;
-    char *desc;
-    char *value;
+    char* name;
+    char* desc;
+    char* value;
     int exists;
 } PARAM;
 
-void print_help(int params_size, PARAM *params, FILE *stream) {
+void print_help(int params_size, PARAM* params, FILE* stream) {
     fprintf(stream, "Usage: %s -t [temperature in Kelvin] -b [bright] -g [gamma]\n\n", NAME);
     for (int c = 0; c < params_size; c++) {
         if (strcmp(params[c].name, "") == 0) fprintf(stream, "\n");
-        else fprintf(stream, "  %s %-8s   %s\n", params[c].name, params[c].value, params[c].desc);
+        else fprintf(stream, "  %-6s %-6s %s\n", params[c].name, params[c].value, params[c].desc);
     }
 }
 
-int get_params(int argc, char *argv[], int params_size, PARAM *params) {
+int get_params(int argc, char* argv[], int params_size, PARAM* params) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0) {
             print_help(params_size, params, stdout);
@@ -43,37 +44,42 @@ int get_params(int argc, char *argv[], int params_size, PARAM *params) {
                 }
             }
         }
-//        printf("%s:%d %s - %s\n", params[c].name, params[c].exists, params[c].desc, params[c].value);
+        //        printf("%s:%d %s - %s\n", params[c].name, params[c].exists, params[c].desc, params[c].value);
     }
 
     return 0;
 }
 
 int is_x11() {
-    char *type = getenv("XDG_SESSION_TYPE");
+    char* type = getenv("XDG_SESSION_TYPE");
     for (int i = 0; i < strlen(type); i++) {
-        type[i] = (char) tolower(type[i]);
+        type[i] = (char)tolower(type[i]);
     }
     return (strcmp(type, "x11") == 0) ? 1 : 0;
 }
 
+int is_cinnamon() {
+    char* v = getenv("CINNAMON_VERSION");
+    return v ? 1 : 0;
+}
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     PARAM params[] = {
-            {"-h", "Display this help",          "",     0},
-            {"-v", "Show program version",       "",     0},
-            {"-i", "Show display info",          "",     0},
-            {""},
-            {"-t", "Temperature in kelvin",      "6500", 0},
-            {"-b", "Brightness from 0.1 to 1.0", "1.0",  0},
-            {"-g", "Gamma from 0.1 to 1.0",      "1.0",  0},
-            {"-xcb", "Use alternative lib",        "",     0}
+        {"-h", "Display this help", "", 0},
+        {"-v", "Show program version", "", 0},
+        {"-i", "Show display info", "", 0},
+        {""},
+        {"-t", "Temperature in kelvin", "6500", 0},
+        {"-b", "Brightness from 0.1 to 1.0", "1.0", 0},
+        {"-g", "Gamma from 0.1 to 1.0", "1.0", 0},
+        {"-xlib", "Use Xlib instead of XCB", "", 0}
     };
 
     int params_size = sizeof(params) / sizeof(PARAM);
 
     if (argc <= 1) {
         print_help(params_size, params, stderr);
+        // dbus_randr_set_temperature(7200, 1.0, 1.0);
         return 1;
     }
 
@@ -90,19 +96,22 @@ int main(int argc, char *argv[]) {
     // -i
     if (params[2].exists) {
         int x11 = is_x11();
-        printf("DS:");
-        if (x11 == 1) printf("x11\n");
-        else printf("%s\n", getenv("XDG_SESSION_TYPE"));
+        // printf("Dys:");
+        // if (x11 == 1) printf("x11\n");
+        // else printf("%s\n", getenv("XDG_SESSION_TYPE"));
 
-        char *de = getenv("XDG_CURRENT_DESKTOP");
-        printf("DE:%s\n", de ? de : "unknown");
-        printf("WM:%s\n\n", "unknown");
+        char* ds = getenv("XDG_SESSION_TYPE");
+        char* de = getenv("XDG_CURRENT_DESKTOP");
+        printf("Display Server: %s\n", ds ? ds : "unknown");
+        printf("Desktop Environment: %s\n", de ? de : "unknown");
+        // printf("WM:%s\n\n", "unknown");
 
         if (x11) {
             if (params[7].exists) {
-                randr_show_info(1);
-            } else {
                 x11_randr_show_info(1);
+            }
+            else {
+                randr_show_info(1);
             }
         }
         return 0;
@@ -116,12 +125,13 @@ int main(int argc, char *argv[]) {
 
     if (is_x11()) {
         if (params[7].exists) {
-            randr_set_temperature(kelvin, bright, gamma);
-        } else {
             x11_randr_set_temperature(kelvin, bright, gamma);
         }
-
-    } else {
+        else {
+            randr_set_temperature(kelvin, bright, gamma);
+        }
+    }
+    else {
         fprintf(stderr, "Display '%s' server not supported", getenv("XDG_SESSION_TYPE"));
     };
 

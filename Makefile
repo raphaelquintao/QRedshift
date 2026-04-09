@@ -1,61 +1,78 @@
+#makefile
 ARCHS = x86_64 i686 aarch64 armv7l armv5tel mips64el mipsel powerpc64le s390x
 
-CC.x86_64 = x86_64-linux-gnu-gcc
-CC.i686 = i686-linux-gnu-gcc
-CC.aarch64 = aarch64-linux-gnu-gcc
-CC.armv7l = arm-linux-gnueabihf-gcc
-CC.armv5tel = arm-linux-gnueabi-gcc
-CC.mips64el = mips64el-linux-gnuabi64-gcc
-CC.mipsel = mipsel-linux-gnu-gcc
-CC.powerpc64le = powerpc64le-linux-gnu-gcc
-CC.s390x = s390x-linux-gnu-gcc
+CC_x86_64 = x86_64-linux-gnu-gcc
+CC_i686    = i686-linux-gnu-gcc
+CC_aarch64 = aarch64-linux-gnu-gcc
+CC_armv7l  = arm-linux-gnueabihf-gcc
+CC_armv5tel= arm-linux-gnueabi-gcc
+CC_mips64el= mips64el-linux-gnuabi64-gcc
+CC_mipsel  = mipsel-linux-gnu-gcc
+CC_powerpc64le = powerpc64le-linux-gnu-gcc
+CC_s390x   = s390x-linux-gnu-gcc
 
-BIN.x86_64 = qredshift_x86_64
-BIN.i686 = qredshift_i686
-BIN.aarch64 = qredshift_aarch64
-BIN.armv7l = qredshift_armv7l
-BIN.armv5tel = qredshift_armv5tel
-BIN.mips64el = qredshift_mips64el
-BIN.mipsel = qredshift_mipsel
-BIN.powerpc64le = qredshift_powerpc64le
-BIN.s390x = qredshift_s390x
+BIN_x86_64 = qredshift_x86_64
+BIN_i686    = qredshift_i686
+BIN_aarch64 = qredshift_aarch64
+BIN_armv7l  = qredshift_armv7l
+BIN_armv5tel= qredshift_armv5tel
+BIN_mips64el= qredshift_mips64el
+BIN_mipsel  = qredshift_mipsel
+BIN_powerpc64le = qredshift_powerpc64le
+BIN_s390x   = qredshift_s390x
 
+VERSION = 0.12
 DOCKER_IMAGE_NAME = qredshift-cross
-
-# Flags
-CFLAGS = -lX11 -lXrandr -lxcb -lxcb-randr -lm
-CFLAGS2 = -l X11 -lXrandr -lxcb -lxcb-randr -lm
-
-# Directories
-SRC_DIR = src
-INCLUDE_DIR = include
-BUILD_DIR = build
-
-# Files
-SRCS = $(shell find $(SRC_DIR) -name '*.c')
-HEADS = $(shell find $(SRC_DIR) -name '*.h')
-#OBJS = $(SRCS:.c=.o)
-
-OBJS = $(addprefix $(BUILD_DIR)/, $(notdir $(SRCS:.c=.o)))
-
-#OBJS = $(subst $(SRC_DIR),$(BUILD_DIR),$(SRCS:.c=.o))
-
-# Local ARCH
-ARCH = $(shell uname -m)
 PWD = $(shell pwd)
 U = $(shell id -u $(SUDO_USER)):$(shell id -g $(SUDO_USER))
+arch ?= $(shell uname -m)
+cc_default = cc
+
+src_dir = src
+build_dir = build
+srсs = $(shell find $(src_dir) -name '*.c')
+
+#cflags = -O2 -Wall $(shell pkg-config --cflags gio-2.0 glib-2.0 x11 xrandr xcb xcb-randr)
+#ldflags = $(shell pkg-config --libs gio-2.0 glib-2.0 x11 xrandr xcb xcb-randr) -lm
+cflags = -O2 -Wall $(shell pkg-config --cflags x11 xrandr xcb xcb-randr)
+ldflags = $(shell pkg-config --libs x11 xrandr xcb xcb-randr) -lm
 
 
-.PHONY: all
+bin = $(if $(BIN_$(arch)),$(BIN_$(arch)),qredshift_$(arch))
+cc_sel = $(if $(CC_$(arch)),$(CC_$(arch)),$(cc_default))
 
-target: $(BUILD_DIR)/$(BIN.$(ARCH))
-	@echo Built $(BUILD_DIR)/$(BIN.$(ARCH))
+.PHONY: all clean run $(ARCHS) cross build
 
-all:
-	@echo ===\> Building for current Arch \<===
-	@make $(ARCH)
+all: build
 
-cross-docker:
+# build for each arch by running a sub-make with arch set
+$(ARCHS):
+	@echo ===\> building for $@ \<===
+	@make arch=$@
+
+build: $(build_dir)/$(bin)
+	@echo Built $<
+
+$(build_dir)/$(bin): $(srсs)
+	@mkdir -p $(build_dir)
+	$(cc_sel) $(srсs) -o $@ $(cflags) $(ldflags)
+
+clean:
+	rm -rf $(build_dir)/*
+
+run: build
+	./$(build_dir)/$(bin) $@
+
+deb: build
+	@chmod +x scripts/make_deb.sh
+	@./scripts/make_deb.sh $(arch) $(bin) $(VERSION)
+
+debs:
+	@for a in $(ARCHS); do \
+	  make arch=$$a deb; \
+	done
+
+docker:
 	@echo ===\> Building with DOCKER \<===
 	@echo USER: $(U)
 	@if [ -z "$$(docker images -q $(DOCKER_IMAGE_NAME))" ]; then \
@@ -64,40 +81,4 @@ cross-docker:
 	else \
 		echo "Image $(DOCKER_IMAGE_NAME) already exists."; \
 	fi
-	@docker run -it -v $(PWD):/qredshift -u $(U) qredshift-cross make $(ARCHS)
-
-
-$(ARCHS):
-	@echo ===\> Building for $@ \<===
-	@rm -f $(BUILD_DIR)/$(BIN.$@)
-	@mkdir -p $(BUILD_DIR)
-# 	@make $(OBJS) ARCH=$@
-	@make $(BUILD_DIR)/$(BIN.$@) ARCH=$@ 1> /dev/null
-
-# Build Directly
-$(BUILD_DIR)/$(BIN.$(ARCH)): $(SRCS)
-	@$(CC.$(ARCH)) $(SRCS) -o $@ $(CFLAGS)
-
-#$(ARCHS):
-#	@echo ===\> Building for $@ \<===
-#	@make $(OBJS)
-#	@make $(BUILD_DIR)/$(BIN.$@)
-#
-## Build Temporaly files
-#$(OBJS): $(SRCS)
-#	@mkdir -p $(dir $@)
-#	@$(CC.$(ARCH)) -c $< -o $@
-#
-#
-## Link the object files to create the final executable
-#$(BUILD_DIR)/$(BIN.$(ARCH)): $(OBJS)
-#	@echo $(OBJS)
-#	$(CC.$(ARCH)) -o $@ $(OBJS) $(CFLAGS)
-
-
-
-clean:
-	@rm -rf build/*
-
-run:
-	./$(BUILD_DIR)/$(BIN.$(ARCH))
+	@docker run -it -v $(PWD):/qredshift -u $(U) qredshift-cross make $(ARCHS) debs
